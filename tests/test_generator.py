@@ -1,6 +1,7 @@
 """Renaming must preserve SolverBase and already-suffixed package names."""
 
 import ast
+import json
 import shutil
 import subprocess
 import sys
@@ -49,8 +50,85 @@ class TestGenerator(unittest.TestCase):
             root,
             target,
             symlinks=True,
-            ignore=shutil.ignore_patterns(".git", ".venv", ".cache", ".ruff_cache", "__pycache__", "*.pyc"),
+            ignore=shutil.ignore_patterns(
+                ".git",
+                ".venv",
+                ".cache",
+                ".ruff_cache",
+                "__pycache__",
+                "*.pyc",
+                "results",
+                "*.nsys-rep",
+                "*.sqlite",
+                "*.ncu-rep",
+            ),
         )
+
+    def test_profiling_copy_excludes_results_and_discovers_renamed_package(self):
+        root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            source = directory / "template"
+            self.copy_template(root, source)
+            inherited = (
+                "nsys/results/old-run/capture.nsys-rep",
+                "nsys/results/old-run/run.json",
+                "nsys/manual.nsys-rep",
+                "nsys/manual.sqlite",
+                "nsys/manual.ncu-rep",
+            )
+            for relative in inherited:
+                path = source / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("Profiling data from the template, not the new solver.\n")
+            target = directory / "generated"
+            subprocess.run(
+                [sys.executable, str(source / "tools/new_solver.py"), str(target), "--name", "newton-solver-custom"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            for relative in inherited:
+                self.assertFalse((target / relative).exists(), relative)
+            self.assertFalse((target / "nsys/results").exists())
+            for relative in ("nsys/profile_examples.py", "nsys/runner.py", "nsys/report.py"):
+                self.assertTrue((target / relative).is_file(), relative)
+            # A newly recorded preview must resolve to the renamed package and
+            # use the same NVTX domain in its runner and capture command.
+            media = target / "docs/media"
+            media.mkdir()
+            (media / "drop.mp4").touch()
+            (media / "drop.gif").touch()
+            inspect = textwrap.dedent("""\
+                import json
+                import runpy
+                import sys
+                from pathlib import Path
+                root = Path(sys.argv[1])
+                sys.path.insert(0, str(root / 'nsys'))
+                profile = runpy.run_path(str(root / 'nsys/profile_examples.py'))
+                package, examples = profile['video_examples']()
+                print(json.dumps({'package': package, 'module': examples['drop']['module']}))
+                """)
+            result = subprocess.run(
+                [sys.executable, "-I", "-c", inspect, str(target)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(
+                json.loads(result.stdout),
+                {"package": "newton_solver_custom", "module": "newton_solver_custom.examples.example_drop"},
+            )
+            dry_run = subprocess.run(
+                [sys.executable, str(target / "nsys/profile_examples.py"), "drop", "--dry-run"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            command = json.loads(dry_run.stdout)["command"]
+            self.assertIn("--nvtx-capture=profile@newton-solver-custom", command)
+            self.assertIn(str(target / "nsys/runner.py"), command)
 
     def check_clone(self, root, directory, stem, class_name):
         target = directory / f"newton-solver-{stem}"
@@ -83,6 +161,17 @@ class TestGenerator(unittest.TestCase):
         self.assertFalse((target / "tests/test_generator.py").exists())
         self.assertTrue((target / "tools/build_readme.py").exists())
         self.assertTrue((target / "tools/record_examples.py").exists())
+        for script in ("profile_examples.py", "runner.py", "report.py"):
+            self.assertTrue((target / "nsys" / script).is_file())
+        runner = ast.parse((target / "nsys/runner.py").read_text())
+        domain = next(
+            node.value
+            for node in runner.body
+            if isinstance(node, ast.Assign)
+            and any(isinstance(item, ast.Name) and item.id == "DOMAIN" for item in node.targets)
+        )
+        self.assertEqual(ast.literal_eval(domain), name)
+        self.assertIn("profiling", metadata["project"]["optional-dependencies"])
         self.assertFalse((target / "docs/media").exists())
         self.assertIn("Video not recorded yet", (target / "README.md").read_text())
         skill = target / ".agents/skills/paper-to-newton-solver"

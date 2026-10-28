@@ -32,3 +32,9 @@ Keep equations in `docs/method.md` and paper-to-function links in `docs/papers.m
 Generate README.md with `python3 tools/build_readme.py`; record actual example
 clips with `tools/record_examples.py`. Preserve attribution and licenses. The
 starter demonstrates integration and autodiff; it does not reproduce a paper.
+
+Use `nsys/profile_examples.py` for opt-in profiles of README video workloads.
+Keep their resolution, numerical budgets and scripted interactions intact;
+separate initialization/training, physics and rendering costs. Inspect raw CUDA
+and NVTX evidence before making performance claims. Profiling output belongs in
+ignored `nsys/results/`, never in the solver runtime or generated example assets.
