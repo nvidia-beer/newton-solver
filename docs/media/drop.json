@@ -1,0 +1,26 @@
+{
+  "example": "drop",
+  "module": "newton_solver.examples.example_drop",
+  "caption": "Particle drops and restitution against a plane.",
+  "arguments": [
+    "--test"
+  ],
+  "device": "cuda:0",
+  "frames": 240,
+  "fps": 60,
+  "width": 960,
+  "height": 540,
+  "recording_wall_seconds": 6.883697199999915,
+  "playback_is_performance_benchmark": false,
+  "simulation_time": [
+    {
+      "attribute": "time",
+      "end": 3.9999999999999885
+    }
+  ],
+  "dependencies": {
+    "newton_solver": "0.1.0",
+    "newton": "1.7.0",
+    "warp-lang": "1.17.0+cu13"
+  }
+}

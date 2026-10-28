@@ -1,0 +1,4 @@
+{
+  "drop": {"frames": 240, "fps": 60, "args": ["--test"], "caption": "Particle drops and restitution against a plane."},
+  "diffsim_optimize": {"frames": 180, "fps": 30, "caption": "Measured terminal-position loss over initial-velocity gradient updates."}
+}

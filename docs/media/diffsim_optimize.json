@@ -1,0 +1,19 @@
+{
+  "example": "diffsim_optimize",
+  "module": "newton_solver.examples.example_diffsim_optimize",
+  "caption": "Measured terminal-position loss over initial-velocity gradient updates.",
+  "arguments": [],
+  "device": "cuda:0",
+  "frames": 180,
+  "fps": 30,
+  "width": 960,
+  "height": 540,
+  "recording_wall_seconds": 2.18765061699969,
+  "playback_is_performance_benchmark": false,
+  "simulation_time": [],
+  "dependencies": {
+    "newton_solver": "0.1.0",
+    "newton": "1.7.0",
+    "warp-lang": "1.17.0+cu13"
+  }
+}
